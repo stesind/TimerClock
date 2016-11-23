@@ -1,0 +1,9 @@
+#define WIFI_SSID ""
+#define WIFI_PASSWORD ""
+#define NAME "Wifi Display"
+#define ENABLEDHT true
+#define ENABLEBME true
+#define OTAPASSWORD ""
+#define MEASUREINTERVAL 3600
+#define BMETEMPOFFSET 0         // Calibration
+#define DHTTEMPOFFSET 0
