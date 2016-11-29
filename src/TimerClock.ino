@@ -130,7 +130,7 @@ int curFanLevel = 0;
 int fanLevel[] = {0, 20, 30, 40, 50, 60, 70, 80, 90,100};
 int maxFanLevel = 10;
 int timerMode = 0;        // 0 default, 1 manual, 2 alarm mode
-String timerModes[] ={"default", "manual", "alarm mode", "offline", "push up"};
+String timerModes[] ={"default/alarm", "manual", "alarm mode", "offline", "push up"};
 int alarm1FanLevel = 3;
 int alarm2FanLevel = 2;
 int alarm3FanLevel = 3;
@@ -486,15 +486,21 @@ void loop() {
         readingAuto = digitalRead(BTNAUTO);
         //Serial << readingUp << endl;
         if (readingAuto == HIGH && previousAuto == LOW) {
-                if (timerMode != TIMER_DEFAULT)  {
-                        timerMode = TIMER_DEFAULT;
-                        Serial.println("Timer Default");
-                        LED_SimpleBlink(LEDPIN, 60, 5);
-                } else {
+                if ((timerMode == TIMER_ALARM) || (timerMode == TIMER_DEFAULT))  {
+                        timerMode = TIMER_MANUAL;
+                        Serial.println("Timer Manual");
+                        //offline LED blink does not work somehow
+                        LED_SimpleBlink(LEDPIN);
+                } else if (timerMode == TIMER_MANUAL)  {
                         timerMode = TIMER_OFFLINE;
                         Serial.println("Timer Offline");
                         //offline LED blink does not work somehow
                         LED_SimpleBlink(LEDPIN, 600, 3);
+
+                } else {
+                        timerMode = TIMER_DEFAULT;
+                        Serial.println("Timer Default"); //goes to alarm mode on next alarm
+                        LED_SimpleBlink(LEDPIN, 60, 5);
                 }
         } else if (readingAuto == LOW && previousAuto == HIGH) {
                 stateDown = LOW;
@@ -604,14 +610,21 @@ void handleFanDown() {
         handleRoot();
 }
 void handleFanAuto() {
-        if (timerMode != TIMER_DEFAULT)  {
-                timerMode = TIMER_DEFAULT;
-                Serial.println("Timer Default");
-                LED_SimpleBlink(LEDPIN, 60, 5);
-        } else {
+        if ((timerMode == TIMER_ALARM) || (timerMode == TIMER_DEFAULT))  {
+                timerMode = TIMER_MANUAL;
+                Serial.println("Timer Manual");
+                //offline LED blink does not work somehow
+                LED_SimpleBlink(LEDPIN);
+        } else if (timerMode == TIMER_MANUAL)  {
                 timerMode = TIMER_OFFLINE;
                 Serial.println("Timer Offline");
-                LED_SimpleBlink(LEDPIN, 500, 2);
+                //offline LED blink does not work somehow
+                LED_SimpleBlink(LEDPIN, 600, 3);
+
+        } else {
+                timerMode = TIMER_DEFAULT;
+                Serial.println("Timer Default"); //goes to alarm mode on next alarm
+                LED_SimpleBlink(LEDPIN, 60, 5);
         }
         //timerMode = TIMER_DEFAULT;
         //digitalWrite(LEDMANPIN, LOW);
@@ -707,7 +720,7 @@ void handleRoot() {
         }
         answer += "<p>Click <a href=\"/Fan=Up\">here</a> turn up the Fan</p>";
         answer += "<p>Click <a href=\"/Fan=Down\">here</a> turn down the Fan</p>";
-        answer += "<p>Click <a href=\"/Fan=Auto\">here</a> to toggle auto/offline Fan control</p>";
+        answer += "<p>Click <a href=\"/Fan=Auto\">here</a> to toggle auto/manual/offline Fan control</p>";
         answer += "<table>";
         answer += "<tr><th>ID</th><th>Start Time</th><th>Level</th><th>Enabled</th></tr>";
         for (int i = 0; i<10; i++) {
@@ -751,7 +764,7 @@ void alarmTrigger() {
         Serial << "alarm" << endl;
         for (int i = 0; i < 10; i++) {
                 if (Alarm.getTriggeredAlarmId() == alarms[i][ALARM_ID]) {
-                        if ((timerMode != TIMER_PUSHUP) && (timerMode != TIMER_OFFLINE)) {
+                        if ((timerMode != TIMER_OFFLINE) || (timerMode != TIMER_MANUAL)) {
                                 curFanLevel = alarms[i][ALARM_LEVEL];
                                 timerMode = TIMER_ALARM;
                                 return;
