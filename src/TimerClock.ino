@@ -172,6 +172,10 @@ bool enableDht = true;
 bool enableBme = false;
 bool enableVoltagesensor = false;
 
+int ledState = LOW;             // ledState used to set the LED
+unsigned long ledPreviousMillis = 0;        // will store last time LED was updated
+long ledInterval = 1000;
+
 time_t getTime() {
         return CE.toLocal(getNtpTime());      //adjust utc to local time
 }
@@ -490,17 +494,16 @@ void loop() {
                         timerMode = TIMER_MANUAL;
                         Serial.println("Timer Manual");
                         //offline LED blink does not work somehow
-                        LED_SimpleBlink(LEDPIN);
+                        //LED_SimpleBlink(LEDPIN, 600, 3);
                 } else if (timerMode == TIMER_MANUAL)  {
                         timerMode = TIMER_OFFLINE;
                         Serial.println("Timer Offline");
                         //offline LED blink does not work somehow
-                        LED_SimpleBlink(LEDPIN, 600, 3);
-
+                        //LED_SimpleBlink(LEDPIN, 3000, 3);
                 } else {
-                        timerMode = TIMER_DEFAULT;
-                        Serial.println("Timer Default"); //goes to alarm mode on next alarm
-                        LED_SimpleBlink(LEDPIN, 60, 5);
+                        timerMode = TIMER_ALARM;
+                        Serial.println("Timer Alarm"); //goes to alarm mode on next alarm
+                        //LED_SimpleBlink(LEDPIN, 60, 5);
                 }
         } else if (readingAuto == LOW && previousAuto == HIGH) {
                 stateDown = LOW;
@@ -515,7 +518,7 @@ void loop() {
                 if (curFanLevel < maxFanLevel) {
                         curFanLevel++;
                 }
-                timerMode = TIMER_MANUAL;
+                //timerMode = TIMER_MANUAL;
                 //digitalWrite(LEDMANPIN, HIGH);
                 //digitalWrite(LEDAUTOPIN, LOW);
 
@@ -532,7 +535,7 @@ void loop() {
                 if (curFanLevel > 0) {
                         curFanLevel--;
                 }
-                timerMode = TIMER_MANUAL;
+                //timerMode = TIMER_MANUAL;
                 //digitalWrite(LEDMANPIN, HIGH);
                 //digitalWrite(LEDAUTOPIN, LOW);
                 Serial.println("Button Down click");
@@ -580,9 +583,37 @@ void loop() {
 
         //value = analogRead(POTIPIN);
         float value = (fanLevel[curFanLevel] * (1023.0 / 100.0)); //esp8266 digital out goes until 1024!!!
-        analogWrite(LEDPIN, value);
+        //analogWrite(LEDPIN, value);
         analogWrite(GATEPIN, value);
         //Serial << "timerMode: " << timerMode << " curFanLevel: " << curFanLevel << " Gate PWM Value: " << value << endl;
+
+        //led blink
+        if (timerMode == TIMER_MANUAL) {
+                ledInterval = 600;
+        } else if (timerMode == TIMER_OFFLINE) {
+                ledInterval = -1;
+        } else {
+                ledInterval = 6000;
+        }
+
+        unsigned long ledCurrentMillis = millis();
+        const unsigned long ledDuration = 10;
+        if (ledInterval < 0) {
+                ledState = LOW;
+        } else {
+                if (ledState == HIGH) {
+                        if (ledCurrentMillis - ledPreviousMillis >= ledDuration) {
+                                ledPreviousMillis = ledCurrentMillis;
+                                ledState = LOW;
+                        }
+                } else if (ledState == LOW) {
+                        if (ledCurrentMillis - ledPreviousMillis >= ledInterval) {
+                                ledPreviousMillis = ledCurrentMillis;
+                                ledState = HIGH;
+                        }
+                }
+        }
+        digitalWrite(LEDPIN, ledState);
 
         //webserver
         server.handleClient();
@@ -596,7 +627,7 @@ void loop() {
 void handleFanUp() {
         if (curFanLevel < maxFanLevel) {
                 curFanLevel++;
-                timerMode = TIMER_MANUAL;
+                //timerMode = TIMER_MANUAL;
                 Serial << "fan up" << curFanLevel << endl;
         }
         handleRoot();
@@ -604,7 +635,7 @@ void handleFanUp() {
 void handleFanDown() {
         if (curFanLevel > 0) {
                 curFanLevel--;
-                timerMode = TIMER_MANUAL;
+                //timerMode = TIMER_MANUAL;
                 Serial << "fan down" << curFanLevel << endl;
         }
         handleRoot();
@@ -614,17 +645,17 @@ void handleFanAuto() {
                 timerMode = TIMER_MANUAL;
                 Serial.println("Timer Manual");
                 //offline LED blink does not work somehow
-                LED_SimpleBlink(LEDPIN);
+                //LED_SimpleBlink(LEDPIN, 600, 3);
         } else if (timerMode == TIMER_MANUAL)  {
                 timerMode = TIMER_OFFLINE;
                 Serial.println("Timer Offline");
                 //offline LED blink does not work somehow
-                LED_SimpleBlink(LEDPIN, 600, 3);
+                //LED_SimpleBlink(LEDPIN, 3000, 3);
 
         } else {
-                timerMode = TIMER_DEFAULT;
+                timerMode = TIMER_ALARM;
                 Serial.println("Timer Default"); //goes to alarm mode on next alarm
-                LED_SimpleBlink(LEDPIN, 60, 5);
+                //LED_SimpleBlink(LEDPIN, 60, 5);
         }
         //timerMode = TIMER_DEFAULT;
         //digitalWrite(LEDMANPIN, LOW);
@@ -841,7 +872,7 @@ long int getNtpTime() {
         }
 }
 // crashes this program but does work otherwhere
-void LED_Blink(int LEDPin, long interval = 1000, long duration = 5000) {
+void LED_Blink(int LEDPin, long interval = 1000, long duration = 5) {
         int ledState = LOW;
         unsigned long previousMillis = 0;
         unsigned long startMillis = millis();
