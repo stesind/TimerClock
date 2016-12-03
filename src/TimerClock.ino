@@ -589,11 +589,11 @@ void loop() {
 
         //led blink
         if (timerMode == TIMER_MANUAL) {
-                ledInterval = 600;
+                ledInterval = 500;
         } else if (timerMode == TIMER_OFFLINE) {
                 ledInterval = -1;
         } else {
-                ledInterval = 6000;
+                ledInterval = 3000;
         }
 
         unsigned long ledCurrentMillis = millis();
