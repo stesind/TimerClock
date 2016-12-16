@@ -583,7 +583,7 @@ void loop() {
         //value = analogRead(POTIPIN);
         float value = 0;
         if (timerMode != TIMER_OFFLINE) {
-          float value = (fanLevel[curFanLevel] * (1023.0 / 100.0)); //esp8266 digital out goes until 1024!!!
+          value = (fanLevel[curFanLevel] * (1023.0 / 100.0)); //esp8266 digital out goes until 1024!!!
         }
         //analogWrite(LEDPIN, value);
         analogWrite(GATEPIN, value);
