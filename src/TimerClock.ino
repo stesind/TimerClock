@@ -114,6 +114,26 @@ DHT dht(DHTPIN, DHTTYPE);
 #define RELAY2 2
 #define RELAY3 3
 
+#define HIGHLEVEL  2
+#define LOWLEVEL  1
+#define HIGHHOUR  8
+#define HIGHMINUTE 0
+#define LOWHOUR  8
+#define LOWMINUTE 0
+
+#define TIMER_ALARM 2
+#define TIMER_MANUAL 1
+#define TIMER_DEFAULT 0
+#define TIMER_OFFLINE 3
+#define TIMER_PUSHUP 4
+
+#define ALARM_STARTHOUR 0
+#define ALARM_STARTMIN 1
+#define ALARM_AY 2
+#define ALARM_LEVEL 3
+#define ALARM_ENABLED 4
+#define ALARM_ID 5
+
 //#define LEDAUTOPIN D8
 //#define LEDMANPIN D9
 
@@ -129,18 +149,11 @@ int previousDown = LOW;    // the previous reading from the input pin
 int curFanLevel = 0;
 int fanLevel[] = {0, 20, 30, 40, 50, 60, 70, 80, 90,100};
 int maxFanLevel = 10;
-int timerMode = 0;        // 0 default, 1 manual, 2 alarm mode
-String timerModes[] ={"default/alarm", "manual", "alarm mode", "offline", "push up"};
+int timerMode = TIMER_DEFAULT;        // 0 default, 1 manual, 2 alarm mode
+String timerModes[] ={"default", "manual", "alarm mode", "offline", "push up"};
 int alarm1FanLevel = 3;
 int alarm2FanLevel = 2;
 int alarm3FanLevel = 3;
-
-#define ALARM_STARTHOUR 0
-#define ALARM_STARTMIN 1
-#define ALARM_AY 2
-#define ALARM_LEVEL 3
-#define ALARM_ENABLED 4
-#define ALARM_ID 5
 
 int alarms[10][6] = {
         { 7, 30, 0, 2, 1, 0 },                 //start hour, start min, daily, level, enabled, id
@@ -154,19 +167,6 @@ int alarms[10][6] = {
 //         { 7, 30, 0, 0, 1, 0 },                 //start hour, start min, daily, level, enabled, id
 //         { 19, 00, 0, 3, 1, 0 },
 // };
-
-#define HIGHLEVEL  2
-#define LOWLEVEL  1
-#define HIGHHOUR  8
-#define HIGHMINUTE 0
-#define LOWHOUR  8
-#define LOWMINUTE 0
-
-#define TIMER_ALARM 2
-#define TIMER_MANUAL 1
-#define TIMER_DEFAULT 0
-#define TIMER_OFFLINE 3
-#define TIMER_PUSHUP 4
 
 bool enableDht = true;
 bool enableBme = false;
@@ -549,14 +549,13 @@ void loop() {
                 double nowTime = hour() * 100 + minute();
                 if  ((nowTime >= (HIGHHOUR * 100 + HIGHMINUTE)) || (nowTime < (LOWHOUR * 100 + LOWMINUTE))) {
                         curFanLevel = HIGHLEVEL;
+                        timerMode = TIMER_ALARM;
                 } else {
                         curFanLevel = LOWLEVEL;
+                        timerMode = TIMER_ALARM;
                 }
         }
 
-        if (timerMode == TIMER_OFFLINE) {
-                curFanLevel = 0;
-        }
         // if (curFanLevel == 1) {
         //         mcp.gpioDigitalWrite(RELAY0,LOW);
         // } else {
@@ -582,7 +581,10 @@ void loop() {
         //temp sensor
 
         //value = analogRead(POTIPIN);
-        float value = (fanLevel[curFanLevel] * (1023.0 / 100.0)); //esp8266 digital out goes until 1024!!!
+        float value = 0;
+        if (timerMode != TIMER_OFFLINE) {
+          float value = (fanLevel[curFanLevel] * (1023.0 / 100.0)); //esp8266 digital out goes until 1024!!!
+        }
         //analogWrite(LEDPIN, value);
         analogWrite(GATEPIN, value);
         //Serial << "timerMode: " << timerMode << " curFanLevel: " << curFanLevel << " Gate PWM Value: " << value << endl;
