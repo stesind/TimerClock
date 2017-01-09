@@ -424,6 +424,8 @@ void setup() {
         server.on ( "/inline", [] () {
                             server.send ( 200, "text/plain", "this works as well" );
                     } );
+        server.on ("/level", handleLevel);
+        server.on ("/mode", handleMode);
         server.on ("/Fan=Up", handleFanUp);
         server.on ("/Fan=Down", handleFanDown);
         server.on ("/Fan=Auto", handleFanAuto);
@@ -624,6 +626,12 @@ void loop() {
         //digitalWrite(LEDPIN, value);
         Alarm.delay(1);
 
+}
+void handleLevel() {
+        server.send ( 200, "text/html", String(curFanLevel));
+}
+void handleMode() {
+        server.send ( 200, "text/html", timerModes[timerMode]);
 }
 
 void handleFanUp() {
