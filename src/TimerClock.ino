@@ -148,7 +148,7 @@ int previousDown = LOW;    // the previous reading from the input pin
 
 int curFanLevel = 0;
 int fanLevel[] = {0, 20, 30, 40, 50, 60, 70, 80, 90,100};
-int maxFanLevel = 10;
+int maxFanLevel = 9;
 int timerMode = TIMER_DEFAULT;        // 0 default, 1 manual, 2 alarm mode
 String timerModes[] ={"default", "manual", "alarm mode", "offline", "push up"};
 int alarm1FanLevel = 3;
@@ -156,7 +156,8 @@ int alarm2FanLevel = 2;
 int alarm3FanLevel = 3;
 
 int alarms[10][6] = {
-        { 7, 30, 0, 2, 1, 0 },                 //start hour, start min, daily, level, enabled, id
+        { 5, 30, 0, 2, 1, 0 },                 //start hour, start min, daily, level, enabled, id
+        { 8, 00, 0, 0, 1, 0 },
         { 8, 30, 0, 1, 1, 0 },
         { 11, 30, 0, 1, 1, 0 },
         { 12, 0, 0, 1, 1, 0 },
@@ -427,7 +428,10 @@ void setup() {
         server.on ("/level", handleLevel);
         server.on ("/mode", handleMode);
         server.on ("/Fan=Up", handleFanUp);
+        server.on ("/Fan=UpVoid", handleFanUpVoid);
         server.on ("/Fan=Down", handleFanDown);
+        server.on ("/Fan=DownVoid", handleFanDownVoid);
+        server.on ("/fan", handleFan);
         server.on ("/Fan=Auto", handleFanAuto);
 
         server.onNotFound ( handleNotFound );
@@ -585,7 +589,7 @@ void loop() {
         //value = analogRead(POTIPIN);
         float value = 0;
         if (timerMode != TIMER_OFFLINE) {
-          value = (fanLevel[curFanLevel] * (1023.0 / 100.0)); //esp8266 digital out goes until 1024!!!
+                value = (fanLevel[curFanLevel] * (1023.0 / 100.0)); //esp8266 digital out goes until 1024!!!
         }
         //analogWrite(LEDPIN, value);
         analogWrite(GATEPIN, value);
@@ -642,13 +646,46 @@ void handleFanUp() {
         }
         handleRoot();
 }
+void handleFanUpVoid() {
+        if (curFanLevel < maxFanLevel) {
+                curFanLevel++;
+                server.send ( 200, "text/html", String(curFanLevel));
+        }
+}
 void handleFanDown() {
+        if (curFanLevel > 0) {
+                curFanLevel--;
+        }
+        handleRoot();
+}
+void handleFanDownVoid() {
         if (curFanLevel > 0) {
                 curFanLevel--;
                 //timerMode = TIMER_MANUAL;
                 Serial << "fan down" << curFanLevel << endl;
         }
-        handleRoot();
+}
+
+boolean IsNumeric(String str) {
+        for(char i = 0; i < str.length(); i++) {
+                if ( !(isDigit(str.charAt(i)) || str.charAt(i) == '.' )) {
+                        return false;
+                }
+        }
+        return true;
+}
+
+void handleFan() {
+        String level=server.arg("level");
+        if (!(level.length()==0)) {
+                if (IsNumeric(level)) {
+                        int value = level.toInt();
+                        if ((value>=0) && (value<= maxFanLevel)) {
+                                curFanLevel = value;
+                        }
+                }
+        }
+        server.send ( 200, "text/html", String(curFanLevel));
 }
 void handleFanAuto() {
         if ((timerMode == TIMER_ALARM) || (timerMode == TIMER_DEFAULT))  {
