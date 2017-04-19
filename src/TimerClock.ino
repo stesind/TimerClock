@@ -134,6 +134,9 @@ DHT dht(DHTPIN, DHTTYPE);
 #define ALARM_ENABLED 4
 #define ALARM_ID 5
 
+#define LOG_SERIAL false
+#define LOG_HTTP true
+
 //#define LEDAUTOPIN D8
 //#define LEDMANPIN D9
 
@@ -148,20 +151,22 @@ int previousDown = LOW;    // the previous reading from the input pin
 
 int curFanLevel = 0;
 int fanLevel[] = {0, 20, 30, 40, 50, 60, 70, 80, 90,100};
-int maxFanLevel = 10;
+int maxFanLevel = 9;
 int timerMode = TIMER_DEFAULT;        // 0 default, 1 manual, 2 alarm mode
 String timerModes[] ={"default", "manual", "alarm mode", "offline", "push up"};
 int alarm1FanLevel = 3;
 int alarm2FanLevel = 2;
 int alarm3FanLevel = 3;
 
+bool isAlarm = false;
 int alarms[10][6] = {
-        { 7, 30, 0, 2, 1, 0 },                 //start hour, start min, daily, level, enabled, id
+        { 6, 0, 0, 2, 1, 0 },                 //start hour, start min, daily, level, enabled, id
         { 8, 30, 0, 1, 1, 0 },
-        { 11, 30, 0, 1, 1, 0 },
-        { 12, 0, 0, 1, 1, 0 },
-        { 17, 30, 0, 1, 1, 0 },
-        { 18, 30, 0, 1, 1, 0 }
+        { 10, 30, 0, 2, 1, 0 },
+        { 12, 30, 0, 1, 1, 0 },
+        { 17, 30, 0, 2, 1, 0 },
+        { 19, 00, 0, 2, 1, 0 },
+        { 21, 30, 0, 1, 1, 0 }
 };
 // int alarms[10][6] = {
 //         { 7, 30, 0, 0, 1, 0 },                 //start hour, start min, daily, level, enabled, id
@@ -175,6 +180,8 @@ bool enableVoltagesensor = false;
 int ledState = LOW;             // ledState used to set the LED
 unsigned long ledPreviousMillis = 0;        // will store last time LED was updated
 long ledInterval = 1000;
+
+String lastLog;
 
 time_t getTime() {
         return CE.toLocal(getNtpTime());      //adjust utc to local time
@@ -299,15 +306,6 @@ void setup() {
 
         // set the pins for I2C
         Wire.begin();
-        // mcp.begin();
-        // mcp.gpioPinMode(RELAY0,OUTPUT);
-        // mcp.gpioPinMode(RELAY1,OUTPUT);
-        // mcp.gpioPinMode(RELAY2,OUTPUT);
-        // mcp.gpioPinMode(RELAY3,OUTPUT);
-        //
-        // mcp.gpioPinMode(I2CBTNAUTO,INPUT);
-        // mcp.gpioPinMode(I2CBTNDOWN,INPUT);
-        // mcp.gpioPinMode(I2CBTNUP,INPUT);
 
 // initialize the LCD
         //lcd.init();
@@ -427,7 +425,10 @@ void setup() {
         server.on ("/level", handleLevel);
         server.on ("/mode", handleMode);
         server.on ("/Fan=Up", handleFanUp);
+        // server.on ("/Fan=UpVoid", handleFanUpVoid);
         server.on ("/Fan=Down", handleFanDown);
+        // server.on ("/Fan=DownVoid", handleFanDownVoid);
+        server.on ("/fan", handleFan);
         server.on ("/Fan=Auto", handleFanAuto);
 
         server.onNotFound ( handleNotFound );
@@ -474,18 +475,6 @@ void LED_SimpleBlink(int LEDPin, long interval = 60, long duration = 5) {
         }
 }
 void loop() {
-
-        // {
-        //         uint8_t buf[12];
-        //         uint8_t buflen = sizeof(buf);
-        //         if (rf_driver.recv(buf, &buflen)) // Non-blocking
-        //         {
-        //                 int i;
-        //                 // Message with a good checksum received, dump it.
-        //                 Serial.print("Message: ");
-        //                 Serial.println((char*)buf);
-        //         } { Serial.println("no data received"); }
-        // }
 
         // read the auto button
         //readingAuto = mcp.gpioDigitalRead(I2CBTNAUTO);
@@ -546,7 +535,25 @@ void loop() {
         }
         previousDown = readingDown;
 
-        //timer mode
+
+        //alarm
+        if (isAlarm) {
+          for (int i = 0; i < 10; i++) {
+                  if (Alarm.getTriggeredAlarmId() == alarms[i][ALARM_ID]) {
+                          lastLog = "alarm id = " + i;
+                          if (timerMode == TIMER_ALARM) {
+                                  lastLog = "alarm in main loop";
+                                  curFanLevel = alarms[i][ALARM_LEVEL];
+                                  timerMode = TIMER_ALARM;
+                                  return;
+                          }
+                  }
+          }
+
+          isAlarm = false;
+        }
+
+        //timer mode default
         if (timerMode == TIMER_DEFAULT) {
                 double nowTime = hour() * 100 + minute();
                 if  ((nowTime >= (HIGHHOUR * 100 + HIGHMINUTE)) || (nowTime < (LOWHOUR * 100 + LOWMINUTE))) {
@@ -558,34 +565,16 @@ void loop() {
                 }
         }
 
-        // if (curFanLevel == 1) {
-        //         mcp.gpioDigitalWrite(RELAY0,LOW);
-        // } else {
-        //         mcp.gpioDigitalWrite(RELAY0,HIGH);
-        // }
-        // if (curFanLevel == 2) {
-        //         mcp.gpioDigitalWrite(RELAY1,LOW);
-        // } else {
-        //         mcp.gpioDigitalWrite(RELAY1,HIGH);
-        // }
-        // if (curFanLevel == 3) {
-        //         mcp.gpioDigitalWrite(RELAY2,LOW);
-        // } else {
-        //         mcp.gpioDigitalWrite(RELAY2,HIGH);
-        // }
-        // if (curFanLevel == 4) {
-        //         mcp.gpioDigitalWrite(RELAY3,LOW);
-        // } else {
-        //         mcp.gpioDigitalWrite(RELAY3,HIGH);
-        // }
-
         //delay(200);
         //temp sensor
-
         //value = analogRead(POTIPIN);
+
+        //timer offline
         float value = 0;
         if (timerMode != TIMER_OFFLINE) {
-          value = (fanLevel[curFanLevel] * (1023.0 / 100.0)); //esp8266 digital out goes until 1024!!!
+                value = (fanLevel[curFanLevel] * (1023.0 / 100.0)); //esp8266 digital out goes until 1024!!!
+        } else {
+          value = 0;
         }
         //analogWrite(LEDPIN, value);
         analogWrite(GATEPIN, value);
@@ -627,6 +616,7 @@ void loop() {
         Alarm.delay(1);
 
 }
+
 void handleLevel() {
         server.send ( 200, "text/html", String(curFanLevel));
 }
@@ -637,18 +627,41 @@ void handleMode() {
 void handleFanUp() {
         if (curFanLevel < maxFanLevel) {
                 curFanLevel++;
+                server.send ( 200, "text/html", "<meta http-equiv=\"refresh\" content=\"0; url=/\" />");
                 //timerMode = TIMER_MANUAL;
-                Serial << "fan up" << curFanLevel << endl;
+                //Serial << "fan up" << curFanLevel << endl;
         }
-        handleRoot();
+        //handleRoot();
 }
+
 void handleFanDown() {
         if (curFanLevel > 0) {
                 curFanLevel--;
-                //timerMode = TIMER_MANUAL;
-                Serial << "fan down" << curFanLevel << endl;
+                server.send ( 200, "text/html", "<meta http-equiv=\"refresh\" content=\"0; url=/\" />");
         }
-        handleRoot();
+        //handleRoot();
+}
+
+boolean IsNumeric(String str) {
+        for(char i = 0; i < str.length(); i++) {
+                if ( !(isDigit(str.charAt(i)) || str.charAt(i) == '.' )) {
+                        return false;
+                }
+        }
+        return true;
+}
+
+void handleFan() {
+        String level=server.arg("level");
+        if (!(level.length()==0)) {
+                if (IsNumeric(level)) {
+                        int value = level.toInt();
+                        if ((value>=0) && (value<= maxFanLevel)) {
+                                curFanLevel = value;
+                        }
+                }
+        }
+        server.send ( 200, "text/html", String(curFanLevel));
 }
 void handleFanAuto() {
         if ((timerMode == TIMER_ALARM) || (timerMode == TIMER_DEFAULT))  {
@@ -670,7 +683,8 @@ void handleFanAuto() {
         //timerMode = TIMER_DEFAULT;
         //digitalWrite(LEDMANPIN, LOW);
         //digitalWrite(LEDAUTOPIN, HIGH);
-        handleRoot();
+        server.send ( 200, "text/html", "<meta http-equiv=\"refresh\" content=\"0; url=/\" />");
+        //handleRoot();
 }
 
 void handleRoot() {
@@ -776,6 +790,11 @@ void handleRoot() {
                 }
         }
         answer += "</table>";
+        if (LOG_HTTP) {
+            answer += "<p>";
+            answer += "Last Log: " + lastLog;
+            answer += "</p>";
+        }
         answer += "<A HREF=\"javascript:history.go(0)\">Click to refresh the page</A>";
         answer += "</body></html>";
         server.sendHeader("Cache-Control", "no-cache");
@@ -802,10 +821,12 @@ void handleNotFound() {
         //digitalWrite ( led, 0 );
 }
 void alarmTrigger() {
+        isAlarm = true;
         Serial << "alarm" << endl;
         for (int i = 0; i < 10; i++) {
                 if (Alarm.getTriggeredAlarmId() == alarms[i][ALARM_ID]) {
-                        if ((timerMode != TIMER_OFFLINE) || (timerMode != TIMER_MANUAL)) {
+                        if ((timerMode == TIMER_ALARM) || (timerMode == TIMER_DEFAULT)) {
+                                lastLog = "alarm set in alarm Trigger";
                                 curFanLevel = alarms[i][ALARM_LEVEL];
                                 timerMode = TIMER_ALARM;
                                 return;
