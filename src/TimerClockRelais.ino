@@ -14,8 +14,8 @@
    Test the PWM function of digital PINs
  */
 #include <Streaming.h>
-#include <DHT.h>
-#include <Wire.h>
+// #include <DHT.h>
+// #include <Wire.h>
 #include <ESP8266WiFi.h>
 #include <ESP8266WebServer.h>
 #include <ESP8266mDNS.h>
@@ -26,25 +26,28 @@
 #include <ArduinoOTA.h>
 #include <Constants.h>
 #include <FS.h>
-#include <Wire.h>
-#include <pcf8574a.h>
+// #include <Wire.h>
+// #include <pcf8574a.h>
 //#include <LiquidCrystal_I2C.h>
-#include <RH_ASK.h>
-#include <BME280.h>
-#include <Adafruit_Sensor.h>
+// #include <RH_ASK.h>
+// #include <BME280.h>
+// #include <Adafruit_Sensor.h>
 
 // Set the LCD address to 0x27 for a 16 chars and 2 line display
 //LiquidCrystal_I2C lcd(0x27, 20, 4);
-//pcf8574a mcp(0x38); //instance
+// // pcf8574a mcp(0x38); //instance
+// #define PIN_INT D5
+// #define SCLPIN D1
+// #define SDAPIN D2
 
 //temparure sensor
-BME280 bme;                   // Default : forced mode, standby time = 1000 ms
+// BME280 bme;                   // Default : forced mode, standby time = 1000 ms
                               // Oversampling = pressure ×1, temperature ×1, humidity ×1, filter off,
 /**
  * @brief mDNS and OTA Constants
  * @{
  */
-#define HOSTNAME "ESP8266-OTA-" ///< Hostename. The setup function adds the Chip ID at the end.
+#define HOSTNAME "vallox" ///< Hostename. The setup function adds the Chip ID at the end.
 /// @}
 /**
  * @brief Default WiFi connection information.
@@ -89,30 +92,33 @@ TimeChangeRule CEST = {"CEST", Last, Sun, Mar, 2, 120};     //Central European S
 TimeChangeRule CET = {"CET ", Last, Sun, Oct, 3, 60};       //Central European Standard Time
 Timezone CE(CEST, CET);
 
-#define DHTPIN D9
+// #define DHTPIN D1
 //#define RFPIN D8
 //RH_ASK rf_driver(2000, D8);  //will initialise the driver at 2000 bps, recieve on GPIO2, transmit on GPIO4, PTT on GPIO5
-#define DHTTYPE DHT22 //DHT11, DHT21, DHT22
-DHT dht(DHTPIN, DHTTYPE);
+// #define DHTTYPE DHT22 //DHT11, DHT21, DHT22
+// DHT dht(DHTPIN, DHTTYPE);
 
-#define SCLPIN D3
-#define SDAPIN D4
-
-#define LEDPIN D6
-#define GATEPIN D7
+#define LEDPIN D4
+// #define GATEPIN D7
 //#define POTIPIN A0  // no poti anymore
-#define VOLTAGESENSORPIN A0
+// #define VOLTAGESENSORPIN A0
 
-#define I2CBTNAUTO 5
-#define I2CBTNUP  6
-#define I2CBTNDOWN  7
-#define BTNUP D2
-#define BTNDOWN D5
-#define BTNAUTO D10
-#define RELAY0 0
-#define RELAY1 1
-#define RELAY2 2
-#define RELAY3 3
+// #define I2CBTNAUTO 5
+// #define I2CBTNUP  6
+// #define I2CBTNDOWN  7
+// #define BTNUP D2
+// #define BTNDOWN D5
+// #define BTNAUTO D10
+
+#define RELAY1 D7
+#define RELAY2 D6
+#define RELAY3 D5
+#define RELAY4 D0
+
+// #define RELAY1 D1
+// #define RELAY2 D2
+// #define RELAY3 D3
+// #define RELAY4 D4
 
 #define HIGHLEVEL  2
 #define LOWLEVEL  1
@@ -136,22 +142,23 @@ DHT dht(DHTPIN, DHTTYPE);
 
 #define LOG_SERIAL false
 #define LOG_HTTP true
+#define LED_ON LOW
+#define LED_OFF HIGH
+// #define LEDAUTOPIN D8
+// #define LEDMANPIN D9
 
-//#define LEDAUTOPIN D8
-//#define LEDMANPIN D9
-
-int stateUp = HIGH;      // the current state of the output pin
-int readingUp;           // the current reading from the input pin
-int previousAuto;
-int readingAuto;
-int previousUp = LOW;    // the previous reading from the input pin
-int stateDown = HIGH;      // the current state of the output pin
-int readingDown;           // the current reading from the input pin
-int previousDown = LOW;    // the previous reading from the input pin
+// int stateUp = LED_ON;      // the current state of the output pin
+// int readingUp;           // the current reading from the input pin
+// int previousAuto;
+// int readingAuto;
+// int previousUp = LED_OFF;    // the previous reading from the input pin
+// int stateDown = LED_ON;      // the current state of the output pin
+// int readingDown;           // the current reading from the input pin
+// int previousDown = LED_ON;    // the previous reading from the input pin
 
 int curFanLevel = 0;
-int fanLevel[] = {0, 20, 30, 40, 50, 60, 70, 80, 90,100};
-int maxFanLevel = 9;
+int fanLevel[] = {0, 10, 20, 30, 40, 50, 60, 70, 80, 90,100};
+int maxFanLevel = 4;
 int timerMode = TIMER_DEFAULT;        // 0 default, 1 manual, 2 alarm mode
 String timerModes[] ={"default", "manual", "alarm mode", "offline", "push up"};
 int alarm1FanLevel = 3;
@@ -173,11 +180,11 @@ int alarms[10][6] = {
 //         { 19, 00, 0, 3, 1, 0 },
 // };
 
-bool enableDht = true;
-bool enableBme = false;
-bool enableVoltagesensor = false;
+// bool enableDht = true;
+// bool enableBme = false;
+// bool enableVoltagesensor = false;
 
-int ledState = LOW;             // ledState used to set the LED
+int ledState = LED_ON;             // ledState used to set the LED
 unsigned long ledPreviousMillis = 0;        // will store last time LED was updated
 long ledInterval = 1000;
 
@@ -290,27 +297,16 @@ void setupAlarms() {
 
 void setup() {
 
-        pinMode(LEDPIN, OUTPUT);
-        pinMode(GATEPIN, OUTPUT);
-        pinMode(DHTPIN, INPUT);
-        analogWriteFreq(1000); // pwm frequen1000 is default 10000 works best
+        pinMode(BUILTIN_LED, OUTPUT);
+        // pinMode(LEDPIN, OUTPUT);
 
-        pinMode(BTNUP, INPUT);
-        pinMode(BTNDOWN, INPUT);
-        pinMode(BTNAUTO, INPUT);
-
-        //pinMode(LEDAUTOPIN, OUTPUT);
-        //pinMode(LEDMANPIN, OUTPUT);
-
-        pinMode(VOLTAGESENSORPIN, INPUT);
+        pinMode(RELAY1, OUTPUT);
+        pinMode(RELAY2, OUTPUT);
+        pinMode(RELAY3, OUTPUT);
+        pinMode(RELAY4, OUTPUT);
 
         // set the pins for I2C
-        Wire.begin();
-
-// initialize the LCD
-        //lcd.init();
-        //lcd.home();
-        //lcd.print("Hello, World!");
+        // Wire.begin();
 
         String station_ssid = WIFI_SSID;
         String station_psk = WIFI_PASSWORD;
@@ -446,13 +442,6 @@ void setup() {
         Serial.print("Local port: ");
         Serial.println(udp.localPort());
 
-        if (enableDht) {
-                dht.begin();
-        }
-
-        if (enableBme) {
-                bme.begin();
-        }
 
         //setSyncProvider((time_t)getNtpTime());
         setSyncProvider(getTime);
@@ -466,75 +455,8 @@ void setup() {
         // if (!rf_driver.init())
         //         Serial.println("init failed");
 }
-void LED_SimpleBlink(int LEDPin, long interval = 60, long duration = 5) {
-        for (int i = 0; i < duration; i++) {
-                analogWrite(LEDPin, 1023);
-                delay(interval);
-                analogWrite(LEDPin, 0);
-                delay(interval);
-        }
-}
+
 void loop() {
-
-        // read the auto button
-        //readingAuto = mcp.gpioDigitalRead(I2CBTNAUTO);
-        readingAuto = digitalRead(BTNAUTO);
-        //Serial << readingUp << endl;
-        if (readingAuto == HIGH && previousAuto == LOW) {
-                if ((timerMode == TIMER_ALARM) || (timerMode == TIMER_DEFAULT))  {
-                        timerMode = TIMER_MANUAL;
-                        Serial.println("Timer Manual");
-                        //offline LED blink does not work somehow
-                        //LED_SimpleBlink(LEDPIN, 600, 3);
-                } else if (timerMode == TIMER_MANUAL)  {
-                        timerMode = TIMER_OFFLINE;
-                        Serial.println("Timer Offline");
-                        //offline LED blink does not work somehow
-                        //LED_SimpleBlink(LEDPIN, 3000, 3);
-                } else {
-                        timerMode = TIMER_ALARM;
-                        Serial.println("Timer Alarm"); //goes to alarm mode on next alarm
-                        //LED_SimpleBlink(LEDPIN, 60, 5);
-                }
-        } else if (readingAuto == LOW && previousAuto == HIGH) {
-                stateDown = LOW;
-        }
-        previousAuto = readingAuto;
-
-        //readingUp = mcp.gpioDigitalRead(I2CBTNUP);
-        readingUp = digitalRead(BTNUP);
-        //Serial << readingUp << endl;
-        if (readingUp == HIGH && previousUp == LOW) {
-                stateUp = HIGH;
-                if (curFanLevel < maxFanLevel) {
-                        curFanLevel++;
-                }
-                //timerMode = TIMER_MANUAL;
-                //digitalWrite(LEDMANPIN, HIGH);
-                //digitalWrite(LEDAUTOPIN, LOW);
-
-                Serial.println("Button Up click");
-        } else if (readingUp == LOW && previousUp == HIGH) {
-                stateUp = LOW;
-        }
-        previousUp = readingUp;
-
-        //readingDown = mcp.gpioDigitalRead(I2CBTNDOWN);
-        readingDown = digitalRead(BTNDOWN);
-        if (readingDown == HIGH && previousDown == LOW) {
-                stateDown = HIGH;
-                if (curFanLevel > 0) {
-                        curFanLevel--;
-                }
-                //timerMode = TIMER_MANUAL;
-                //digitalWrite(LEDMANPIN, HIGH);
-                //digitalWrite(LEDAUTOPIN, LOW);
-                Serial.println("Button Down click");
-        } else if (readingDown == LOW && previousDown == HIGH) {
-                stateDown = LOW;
-        }
-        previousDown = readingDown;
-
 
         //alarm
         if (isAlarm) {
@@ -565,19 +487,30 @@ void loop() {
                 }
         }
 
-        //delay(200);
-        //temp sensor
-        //value = analogRead(POTIPIN);
+                digitalWrite(RELAY1, HIGH);
+                digitalWrite(RELAY2, HIGH);
+                digitalWrite(RELAY3, HIGH);
+                digitalWrite(RELAY4, HIGH);
 
-        //timer offline
-        float value = 0;
         if (timerMode != TIMER_OFFLINE) {
-                value = (fanLevel[curFanLevel] * (1023.0 / 100.0)); //esp8266 digital out goes until 1024!!!
-        } else {
-          value = 0;
+              if (curFanLevel == 1) {
+                digitalWrite(RELAY1, LOW);
+              }
+              else if (curFanLevel == 2) {
+                digitalWrite(RELAY2, LOW);
+              }
+              else if (curFanLevel == 3) {
+                digitalWrite(RELAY3, LOW);
+              }
+              else if (curFanLevel == 4) {
+                digitalWrite(RELAY4, LOW);
+              }
         }
-        //analogWrite(LEDPIN, value);
-        analogWrite(GATEPIN, value);
+
+        char buffer[24];
+        sprintf(buffer, "FanLevel: %d ", curFanLevel);
+        // sprintf(buffer, "FanLevel: %d Value: %s ", fanLevel[curFanLevel], str_value);
+        lastLog = buffer;
         //Serial << "timerMode: " << timerMode << " curFanLevel: " << curFanLevel << " Gate PWM Value: " << value << endl;
 
         //led blink
@@ -592,21 +525,22 @@ void loop() {
         unsigned long ledCurrentMillis = millis();
         const unsigned long ledDuration = 10;
         if (ledInterval < 0) {
-                ledState = LOW;
+                ledState = LED_OFF;
         } else {
-                if (ledState == HIGH) {
+                if (ledState == LED_ON) {
                         if (ledCurrentMillis - ledPreviousMillis >= ledDuration) {
                                 ledPreviousMillis = ledCurrentMillis;
-                                ledState = LOW;
+                                ledState = LED_OFF;
                         }
-                } else if (ledState == LOW) {
+                } else if (ledState == LED_OFF) {
                         if (ledCurrentMillis - ledPreviousMillis >= ledInterval) {
                                 ledPreviousMillis = ledCurrentMillis;
-                                ledState = HIGH;
+                                ledState = LED_ON;
                         }
                 }
         }
-        digitalWrite(LEDPIN, ledState);
+        digitalWrite(BUILTIN_LED, ledState);
+                // digitalWrite(LEDPIN, ledState);
 
         //webserver
         server.handleClient();
@@ -712,67 +646,67 @@ void handleRoot() {
         sprintf(buffer, "Time: %02d:%02d:%02d %02d.%02d.%04d", hour(), minute(), second(), day(), month(), year());
         answer += buffer;
         answer +="</p>";
-        if (enableBme || enableDht) {
-                float temperature(NAN), humidity(NAN), presssure(NAN);
-                if (enableBme) {
-                        bool metric = true;
-                        uint8_t pressureUnit(1); // unit: B000 = Pa, B001 = hPa, B010 = Hg, B011 = atm, B100 = bar, B101 = torr, B110 = N/m^2, B111 = psi
-                        //bme.ReadData(presssure, temperature, humidity, metric, pressureUnit);          // Parameters: (float& pressure, float& temp, float& humidity, bool hPa = true, bool celsius = false)
-                        // Alternatives to ReadData():
-                        temperature = bme.ReadTemperature(true);
-                        presssure = bme.ReadPressure(1);
-                        humidity = bme.ReadHumidity();
-                } else {
-
-                        ////dht22 sensor
-                        humidity = dht.readHumidity(); //Luftfeuchte auslesen
-                        temperature = dht.readTemperature(); //Temperatur auslesen
-                        presssure = 0.0;
-                        // Prüfen ob eine gültige Zahl zurückgegeben wird. Wenn NaN (not a number) zurückgegeben wird, dann Fehler ausgeben.
-                        if ((isnan(temperature) || isnan(humidity)) )
-                        {
-                                Serial.println("DHT22 konnte nicht ausgelesen werden");
-                        }
-                        else
-                        {
-                                //Serial << ("Luftfeuchte: ") << h << " Temperatur: " << t << " C" <<endl;
-                        }
-                }
-                char str_temp[3];
-                char str_temp2[3];
-                char str_temp3[3];
-                dtostrf(temperature, 2, 1, str_temp); // da %f nicht im arduino implementiert is
-                dtostrf(humidity, 2, 0, str_temp2); // da %f nicht im arduino implementiert is
-                dtostrf(presssure, 2, 0, str_temp3); // da %f nicht im arduino implementiert is
-                char buffer[24];
-                sprintf(buffer, "Temperature: %sC Humidity: %s%% Pressure: %shPa", str_temp, str_temp2, str_temp3);
-                answer += "<p>";
-                answer += buffer;
-                answer += "</p>";
-        }
+        // if (enableBme || enableDht) {
+        //         float temperature(NAN), humidity(NAN), presssure(NAN);
+        //         if (enableBme) {
+        //                 bool metric = true;
+        //                 uint8_t pressureUnit(1); // unit: B000 = Pa, B001 = hPa, B010 = Hg, B011 = atm, B100 = bar, B101 = torr, B110 = N/m^2, B111 = psi
+        //                 //bme.ReadData(presssure, temperature, humidity, metric, pressureUnit);          // Parameters: (float& pressure, float& temp, float& humidity, bool hPa = true, bool celsius = false)
+        //                 // Alternatives to ReadData():
+        //                 temperature = bme.ReadTemperature(true);
+        //                 presssure = bme.ReadPressure(1);
+        //                 humidity = bme.ReadHumidity();
+        //         } else {
+        //
+        //                 ////dht22 sensor
+        //                 humidity = dht.readHumidity(); //Luftfeuchte auslesen
+        //                 temperature = dht.readTemperature(); //Temperatur auslesen
+        //                 presssure = 0.0;
+        //                 // Prüfen ob eine gültige Zahl zurückgegeben wird. Wenn NaN (not a number) zurückgegeben wird, dann Fehler ausgeben.
+        //                 if ((isnan(temperature) || isnan(humidity)) )
+        //                 {
+        //                         Serial.println("DHT22 konnte nicht ausgelesen werden");
+        //                 }
+        //                 else
+        //                 {
+        //                         //Serial << ("Luftfeuchte: ") << h << " Temperatur: " << t << " C" <<endl;
+        //                 }
+        //         }
+        //         char str_temp[3];
+        //         char str_temp2[3];
+        //         char str_temp3[3];
+        //         dtostrf(temperature, 2, 1, str_temp); // da %f nicht im arduino implementiert is
+        //         dtostrf(humidity, 2, 0, str_temp2); // da %f nicht im arduino implementiert is
+        //         dtostrf(presssure, 2, 0, str_temp3); // da %f nicht im arduino implementiert is
+        //         char buffer[24];
+        //         sprintf(buffer, "Temperature: %sC Humidity: %s%% Pressure: %shPa", str_temp, str_temp2, str_temp3);
+        //         answer += "<p>";
+        //         answer += buffer;
+        //         answer += "</p>";
+        // }
         answer += "<p>Fanlevel: ";
         answer += curFanLevel;
         answer += " Timermode: ";
         answer += timerMode;
         answer += " " + timerModes[timerMode];
         answer += "</p>";
-        if (enableVoltagesensor) {
-                int samples = 20;
-                double value = 0;
-                for (int i = 0; i<samples; i++) {
-                        double rawValue = analogRead(VOLTAGESENSORPIN);
-                        value += rawValue;
-                        delay(1);
-                }
-                float avgValue = value / samples;
-                float voltage = avgValue * (12.0/1023.0);
-                Serial << "Value: " << avgValue << " Voltage: " << voltage << endl;
-                answer += "<p>Metered voltage: ";
-                answer += voltage;
-                answer += "V Voltage Value: ";
-                answer += avgValue;
-                answer += "</p>";
-        }
+        // if (enableVoltagesensor) {
+        //         int samples = 20;
+        //         double value = 0;
+        //         for (int i = 0; i<samples; i++) {
+        //                 double rawValue = analogRead(VOLTAGESENSORPIN);
+        //                 value += rawValue;
+        //                 delay(1);
+        //         }
+        //         float avgValue = value / samples;
+        //         float voltage = avgValue * (12.0/1023.0);
+        //         Serial << "Value: " << avgValue << " Voltage: " << voltage << endl;
+        //         answer += "<p>Metered voltage: ";
+        //         answer += voltage;
+        //         answer += "V Voltage Value: ";
+        //         answer += avgValue;
+        //         answer += "</p>";
+        // }
         answer += "<p>Click <a href=\"/Fan=Up\">here</a> turn up the Fan</p>";
         answer += "<p>Click <a href=\"/Fan=Down\">here</a> turn down the Fan</p>";
         answer += "<p>Click <a href=\"/Fan=Auto\">here</a> to toggle auto/manual/offline Fan control</p>";
@@ -903,26 +837,26 @@ long int getNtpTime() {
         }
 }
 // crashes this program but does work otherwhere
-void LED_Blink(int LEDPin, long interval = 1000, long duration = 5) {
-        int ledState = LOW;
-        unsigned long previousMillis = 0;
-        unsigned long startMillis = millis();
-        unsigned long currentMillis = 0;
-        while   ((millis() - startMillis) <= duration) {
-                currentMillis = millis();
-                if (currentMillis - previousMillis >= interval) {
-                        // save the last time you blinked the LED
-                        previousMillis = currentMillis;
-                        // if the LED is off turn it on and vice-versa:
-                        if (ledState == LOW) {
-                                ledState = HIGH;
-                        } else {
-                                ledState = LOW;
-                        }
-                        // set the LED with the ledState of the variable:
-                        digitalWrite(LEDPIN, ledState);
-                }
-        }
-        //delay(10);
-        yield();
-}
+// void LED_Blink(int LEDPin, long interval = 1000, long duration = 5) {
+//         int ledState = LOW;
+//         unsigned long previousMillis = 0;
+//         unsigned long startMillis = millis();
+//         unsigned long currentMillis = 0;
+//         while   ((millis() - startMillis) <= duration) {
+//                 currentMillis = millis();
+//                 if (currentMillis - previousMillis >= interval) {
+//                         // save the last time you blinked the LED
+//                         previousMillis = currentMillis;
+//                         // if the LED is off turn it on and vice-versa:
+//                         if (ledState == LOW) {
+//                                 ledState = HIGH;
+//                         } else {
+//                                 ledState = LOW;
+//                         }
+//                         // set the LED with the ledState of the variable:
+//                         digitalWrite(LEDPIN, ledState);
+//                 }
+//         }
+//         //delay(10);
+//         yield();
+// }
