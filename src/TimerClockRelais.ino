@@ -92,28 +92,12 @@ TimeChangeRule CEST = {"CEST", Last, Sun, Mar, 2, 120};     //Central European S
 TimeChangeRule CET = {"CET ", Last, Sun, Oct, 3, 60};       //Central European Standard Time
 Timezone CE(CEST, CET);
 
-// #define DHTPIN D1
-//#define RFPIN D8
-//RH_ASK rf_driver(2000, D8);  //will initialise the driver at 2000 bps, recieve on GPIO2, transmit on GPIO4, PTT on GPIO5
-// #define DHTTYPE DHT22 //DHT11, DHT21, DHT22
-// DHT dht(DHTPIN, DHTTYPE);
-
 #define LEDPIN D4
-// #define GATEPIN D7
-//#define POTIPIN A0  // no poti anymore
-// #define VOLTAGESENSORPIN A0
-
-// #define I2CBTNAUTO 5
-// #define I2CBTNUP  6
-// #define I2CBTNDOWN  7
-// #define BTNUP D2
-// #define BTNDOWN D5
-// #define BTNAUTO D10
 
 #define RELAY1 D7
 #define RELAY2 D6
 #define RELAY3 D5
-#define RELAY4 D0
+#define RELAY4 D2   //Achung!!! D2 und D0 sind in der API vertauscht! Angeklemmt ist D0
 
 // #define RELAY1 D1
 // #define RELAY2 D2
@@ -144,17 +128,6 @@ Timezone CE(CEST, CET);
 #define LOG_HTTP true
 #define LED_ON LOW
 #define LED_OFF HIGH
-// #define LEDAUTOPIN D8
-// #define LEDMANPIN D9
-
-// int stateUp = LED_ON;      // the current state of the output pin
-// int readingUp;           // the current reading from the input pin
-// int previousAuto;
-// int readingAuto;
-// int previousUp = LED_OFF;    // the previous reading from the input pin
-// int stateDown = LED_ON;      // the current state of the output pin
-// int readingDown;           // the current reading from the input pin
-// int previousDown = LED_ON;    // the previous reading from the input pin
 
 int curFanLevel = 0;
 int fanLevel[] = {0, 10, 20, 30, 40, 50, 60, 70, 80, 90,100};
@@ -175,14 +148,6 @@ int alarms[10][6] = {
         { 19, 00, 0, 2, 1, 0 },
         { 21, 30, 0, 1, 1, 0 }
 };
-// int alarms[10][6] = {
-//         { 7, 30, 0, 0, 1, 0 },                 //start hour, start min, daily, level, enabled, id
-//         { 19, 00, 0, 3, 1, 0 },
-// };
-
-// bool enableDht = true;
-// bool enableBme = false;
-// bool enableVoltagesensor = false;
 
 int ledState = LED_ON;             // ledState used to set the LED
 unsigned long ledPreviousMillis = 0;        // will store last time LED was updated
@@ -408,10 +373,20 @@ void setup() {
                 Serial.println(WiFi.softAPIP());
         }
 
-        // Start OTA server.
+        // Start OTA server for updating ota.
         ArduinoOTA.setHostname((const char *)hostname.c_str());
         ArduinoOTA.setPassword((const char *)"steffen");
         ArduinoOTA.begin();
+
+        // set up MDNS
+        // address is ventilation.local
+        if (!MDNS.begin("ventilation")) {
+          Serial.println("Error setting up MDNS responder!");
+          while(1) {
+            delay(1000);
+          }
+        }
+        Serial.println("mDNS responder started");
 
         // Start the server
         server.on ( "/", handleRoot );
@@ -430,6 +405,9 @@ void setup() {
         server.onNotFound ( handleNotFound );
         server.begin();
         Serial.println("Server started");
+
+        // Add service to MDNS-SD
+        MDNS.addService("http", "tcp", 80);
 
         // Print the IP address
         Serial.print("Use this URL to connect: ");
@@ -646,68 +624,13 @@ void handleRoot() {
         sprintf(buffer, "Time: %02d:%02d:%02d %02d.%02d.%04d", hour(), minute(), second(), day(), month(), year());
         answer += buffer;
         answer +="</p>";
-        // if (enableBme || enableDht) {
-        //         float temperature(NAN), humidity(NAN), presssure(NAN);
-        //         if (enableBme) {
-        //                 bool metric = true;
-        //                 uint8_t pressureUnit(1); // unit: B000 = Pa, B001 = hPa, B010 = Hg, B011 = atm, B100 = bar, B101 = torr, B110 = N/m^2, B111 = psi
-        //                 //bme.ReadData(presssure, temperature, humidity, metric, pressureUnit);          // Parameters: (float& pressure, float& temp, float& humidity, bool hPa = true, bool celsius = false)
-        //                 // Alternatives to ReadData():
-        //                 temperature = bme.ReadTemperature(true);
-        //                 presssure = bme.ReadPressure(1);
-        //                 humidity = bme.ReadHumidity();
-        //         } else {
-        //
-        //                 ////dht22 sensor
-        //                 humidity = dht.readHumidity(); //Luftfeuchte auslesen
-        //                 temperature = dht.readTemperature(); //Temperatur auslesen
-        //                 presssure = 0.0;
-        //                 // Prüfen ob eine gültige Zahl zurückgegeben wird. Wenn NaN (not a number) zurückgegeben wird, dann Fehler ausgeben.
-        //                 if ((isnan(temperature) || isnan(humidity)) )
-        //                 {
-        //                         Serial.println("DHT22 konnte nicht ausgelesen werden");
-        //                 }
-        //                 else
-        //                 {
-        //                         //Serial << ("Luftfeuchte: ") << h << " Temperatur: " << t << " C" <<endl;
-        //                 }
-        //         }
-        //         char str_temp[3];
-        //         char str_temp2[3];
-        //         char str_temp3[3];
-        //         dtostrf(temperature, 2, 1, str_temp); // da %f nicht im arduino implementiert is
-        //         dtostrf(humidity, 2, 0, str_temp2); // da %f nicht im arduino implementiert is
-        //         dtostrf(presssure, 2, 0, str_temp3); // da %f nicht im arduino implementiert is
-        //         char buffer[24];
-        //         sprintf(buffer, "Temperature: %sC Humidity: %s%% Pressure: %shPa", str_temp, str_temp2, str_temp3);
-        //         answer += "<p>";
-        //         answer += buffer;
-        //         answer += "</p>";
-        // }
         answer += "<p>Fanlevel: ";
         answer += curFanLevel;
         answer += " Timermode: ";
         answer += timerMode;
         answer += " " + timerModes[timerMode];
         answer += "</p>";
-        // if (enableVoltagesensor) {
-        //         int samples = 20;
-        //         double value = 0;
-        //         for (int i = 0; i<samples; i++) {
-        //                 double rawValue = analogRead(VOLTAGESENSORPIN);
-        //                 value += rawValue;
-        //                 delay(1);
-        //         }
-        //         float avgValue = value / samples;
-        //         float voltage = avgValue * (12.0/1023.0);
-        //         Serial << "Value: " << avgValue << " Voltage: " << voltage << endl;
-        //         answer += "<p>Metered voltage: ";
-        //         answer += voltage;
-        //         answer += "V Voltage Value: ";
-        //         answer += avgValue;
-        //         answer += "</p>";
-        // }
-        answer += "<p>Click <a href=\"/Fan=Up\">here</a> turn up the Fan</p>";
+          answer += "<p>Click <a href=\"/Fan=Up\">here</a> turn up the Fan</p>";
         answer += "<p>Click <a href=\"/Fan=Down\">here</a> turn down the Fan</p>";
         answer += "<p>Click <a href=\"/Fan=Auto\">here</a> to toggle auto/manual/offline Fan control</p>";
         answer += "<table>";
@@ -836,27 +759,3 @@ long int getNtpTime() {
                 }
         }
 }
-// crashes this program but does work otherwhere
-// void LED_Blink(int LEDPin, long interval = 1000, long duration = 5) {
-//         int ledState = LOW;
-//         unsigned long previousMillis = 0;
-//         unsigned long startMillis = millis();
-//         unsigned long currentMillis = 0;
-//         while   ((millis() - startMillis) <= duration) {
-//                 currentMillis = millis();
-//                 if (currentMillis - previousMillis >= interval) {
-//                         // save the last time you blinked the LED
-//                         previousMillis = currentMillis;
-//                         // if the LED is off turn it on and vice-versa:
-//                         if (ledState == LOW) {
-//                                 ledState = HIGH;
-//                         } else {
-//                                 ledState = LOW;
-//                         }
-//                         // set the LED with the ledState of the variable:
-//                         digitalWrite(LEDPIN, ledState);
-//                 }
-//         }
-//         //delay(10);
-//         yield();
-// }
